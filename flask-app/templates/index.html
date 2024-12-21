@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'meta.html' %}
+    <title>Dashboard</title>
+</head>
+<body>
+    {% include 'header.html' %}
+    <main class="p-5" style="background-color: rgba(102, 196, 208, 0.39); min-height: 100vh;">
+        <div class="d-sm-flex align-items-center justify-content-between mb-4">
+            <h1 class="h4 mb-0 text-gray-300 font-weight-bold">DASHBOARD</h1>
+        </div>
+        <div class="row">
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-primary shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">CVE COUNT</div>
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col-auto">
+                                        <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{cve_Counter}}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-ghost fa-xl text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-warning shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">CVE EMAIL SENT</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{cve_emailSentCount}}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-bell fa-xl text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-success shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">GENERAL NEWS COUNT</div>
+                                <div class="h7 mb-0 mr-3 font-weight-bold text-gray-800">{{news_Counter}}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-newspaper fa-xl text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-success shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">NEWS EMAIL SENT</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">0</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-bell fa-xl text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow h-100 py-5 px-5 mb-4">
+            <div class="d-flex justify-content-end mb-3">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-danger dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Toggle Table
+                    </button>
+                    <div class="dropdown-menu">
+                        <a class="dropdown-item" onclick="showTable('cve')">CVE DATA</a>
+                        <a class="dropdown-item" onclick="showTable('news')">NEWS DATA</a>
+                    </div>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table id="dynamicTable" class="table display table-hover table-striped table-sm">
+                    <thead id="dynamicHeader" class="thead-dark">
+                        <tr>
+                            <!-- Initial headers for CVE -->
+                            <th>#</th>
+                            <th>CVE ID</th>
+                            <th>CVE NAME</th>
+                            <th>PUBLISHED DATE</th>
+                            <th>SEVERITY</th>
+                            <th>DESCRIPTION</th>
+                            <th>LINK</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dynamicData">
+                        <!-- Table rows will be dynamically populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    {% include 'script.html' %}
+    <script>
+        const cveData = {{ cve_data|tojson }};
+        const newsData = {{ news_data|tojson }};
+        function showTable(type) {
+            const tableHeader = document.getElementById("dynamicHeader");
+            const tableBody = document.getElementById("dynamicData");
+
+            tableBody.innerHTML = "";
+
+            if (type === "cve") {
+                tableHeader.innerHTML = `
+                    <tr>
+                        <th>#</th>
+                        <th>CVE ID</th>
+                        <th>CVE NAME</th>
+                        <th>PUBLISHED DATE</th>
+                        <th>SEVERITY</th>
+                        <th>DESCRIPTION</th>
+                        <th>LINK</th>
+                    </tr>
+                `;
+                cveData.forEach((item, index) => {
+                    const row = `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${item.cve_number}</td>
+                            <td>${item.cve_name}</td>
+                            <td>${item.cve_pubdate}</td>
+                            <td>${item.cve_severity}</td>
+                            <td>${item.cve_description}</td>
+                            <td><a href="${item.cve_link}">${item.cve_link}</a></td>
+                        </tr>
+                    `;
+                    tableBody.insertAdjacentHTML("beforeend", row);
+                });
+            } else if (type === "news") {
+                tableHeader.innerHTML = `
+                    <tr>
+                        <th>#</th>
+                        <th>NEWS TITLE</th>
+                        <th>PUBLISHED DATE</th>
+                        <th>NEWS DESCRIPTION</th>
+                        <th>NEWS LINK</th>
+                    </tr>
+                `;
+                newsData.forEach((item, index) => {
+                    const row = `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${item.news_title}</td>
+                            <td>${item.news_pubdate}</td>
+                            <td>${item.news_description}</td>
+                            <td><a href="${item.news_link}">${item.news_link}</a></td>
+                        </tr>
+                    `;
+                    tableBody.insertAdjacentHTML("beforeend", row);
+                });
+            }
+        }
+        document.addEventListener("DOMContentLoaded", () => showTable("cve"));
+    </script>
+    <script>
+        $(document).ready(function() {
+            $('#dynamicTable').DataTable({
+                pageLength: 5
+            });
+        });
+    </script>
+    
+</body>
+</html>

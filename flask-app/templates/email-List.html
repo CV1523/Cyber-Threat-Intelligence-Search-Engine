@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'meta.html' %}
+    <title>Email List</title>
+</head>
+<body>
+    {% include 'header.html' %}
+    <main class="p-5" style="background-color: rgba(102, 196, 208, 0.39); min-height: 100vh;">
+        <div class="d-sm-flex align-items-center justify-content-between mb-4">
+            <h1 class="h4 mb-0 text-gray-300 font-weight-bold">ADD NEW EMAIL</h1>
+        </div>
+        <div class="row card p-3">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div>
+                        {% for category, message in messages %}
+                            <ol class="alert alert-{{ category }} ">{{ message }}</ol>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            <form class="form-inline" action="/addEmail" method="POST">
+                <div class="form-group mb-2">
+                    <label for="name" class="sr-only">Password</label>
+                    <input type="text" class="form-control" id="name" name="name" placeholder="Name (optional)">
+                </div>
+                <div class="form-group mx-sm-3 mb-2">
+                    <label for="email" class="sr-only">Email Address</label>
+                    <input type="email" class="form-control" id="email" name="email" placeholder="email@example.com" required>
+                </div>
+                <button type="submit" class="btn btn-primary mb-2">+</button>
+            </form>
+        </div>
+        <div class="d-sm-flex align-items-center justify-content-between mt-4 mb-4">
+            <h1 class="h4 mb-0 text-gray-300 font-weight-bold">EMAIL LIST</h1>
+        </div>
+        <div class="row card p-3">
+            <div class="table-responsive">
+                <table id="dynamicTable" class="table display table-hover table-striped table-sm">
+                    <thead id="dynamicHeader" class="thead-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>NAME</th>
+                            <th>EMAIL ID</th>
+                            <th>DROP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="email-data">
+                        {% for item in email_data %}
+                            <tr>
+                                <td>{{loop.index}}</td>
+                                <td>{{item.name}}</td>
+                                <td>{{item.email}}</td>
+                                <td><a class="btn btn-secondary btn-danger" href={{ url_for('deleteEmail', email=item.email) }} role="button"><i class="fa-regular fa-trash-can"></i></a></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </main>
+    {% include 'script.html' %}
+    <script>
+        $(document).ready(function() {
+            $('#dynamicTable').DataTable({
+                pageLength: 5
+            });
+        });
+    </script>
+</body>
+</html>
