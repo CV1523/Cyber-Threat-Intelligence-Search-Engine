@@ -11,15 +11,7 @@
             <h1 class="h4 mb-0 text-gray-300 font-weight-bold">EDIT PROFILE</h1>
         </div>
         <div class="row card p-3">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <div>
-                        {% for category, message in messages %}
-                            <ol class="alert alert-{{ category }} ">{{ message }}</ol>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            {% endwith %}
+            {% include 'alert.html' %}
             <form action="/update_profile" method="POST">
                   <div class="form-group">
                     <label for="username">Username</label>

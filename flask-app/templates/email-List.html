@@ -11,16 +11,8 @@
             <h1 class="h4 mb-0 text-gray-300 font-weight-bold">ADD NEW EMAIL</h1>
         </div>
         <div class="row card p-3">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <div>
-                        {% for category, message in messages %}
-                            <ol class="alert alert-{{ category }} ">{{ message }}</ol>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            {% endwith %}
-            <form class="form-inline" action="/addEmail" method="POST">
+            {% include 'alert.html' %}
+            <form class="form-inline flex-wrap" action="/addEmail" method="POST">
                 <div class="form-group mb-2">
                     <label for="name" class="sr-only">Password</label>
                     <input type="text" class="form-control" id="name" name="name" placeholder="Name (optional)">
@@ -30,6 +22,27 @@
                     <input type="email" class="form-control" id="email" name="email" placeholder="email@example.com" required>
                 </div>
                 <button type="submit" class="btn btn-primary mb-2">+</button>
+            </form>
+            <hr id="up-hr" />
+            <form action="/uploadEmails" method="POST" enctype="multipart/form-data">
+                <div class="input-group">
+                    <div class="custom-file">
+                        <input 
+                            type="file" 
+                            class="custom-file-input" 
+                            id="inputGroupFile04" 
+                            name="emailfile" 
+                            accept=".csv" 
+                            required 
+                            onchange="updateFileName(this)"
+                        >
+                        <label class="custom-file-label" for="inputGroupFile04">Choose CSV file</label>
+                    </div>
+                    <div class="input-group-append">
+                        <button class="btn btn-success" type="submit">Upload</button>
+                        <a class="btn btn-danger" href="/getSampleFile">Download Sample(.csv)</a>
+                    </div>
+                </div>
             </form>
         </div>
         <div class="d-sm-flex align-items-center justify-content-between mt-4 mb-4">
@@ -68,6 +81,12 @@
                 pageLength: 5
             });
         });
+
+        function updateFileName(input) {
+            const fileName = input.files[0]?.name || 'Choose CSV file';
+            const label = input.nextElementSibling;
+            label.textContent = fileName;
+        }
     </script>
 </body>
 </html>

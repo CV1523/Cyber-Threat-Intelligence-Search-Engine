@@ -1,16 +1,26 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
 import pymysql
 from dotenv import load_dotenv
 import os
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
 from email_validator import validate_email, EmailNotValidError
+from werkzeug.utils import secure_filename
+import csv
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY')  # Secret key for session management
+
+ALLOWED_EXTENSIONS = {'csv'}
+UPLOAD_FOLDER = 'uploads/'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Initialize LoginManager and Bcrypt
 login_manager = LoginManager()
@@ -223,7 +233,6 @@ def deleteEmail():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-
         email = request.args.get('email').strip()
         cursor.execute('SELECT email from ca_emailList WHERE email = %s', (email))
         email_exist_check = cursor.fetchone()
@@ -233,17 +242,86 @@ def deleteEmail():
         else:
             cursor.execute('DELETE from ca_emailList WHERE email = %s', (email))
             conn.commit()
-
             flash('Email deleted successfully!', 'success')
             return redirect(url_for('email_list'))
     except Exception as e:
-        # Handle any errors that occur during the process
         flash('An error occurred. Please try again.', 'danger')
         return redirect(url_for('email_list'))
-
     finally:
         cursor.close()
         conn.close()
+
+@app.route('/uploadEmails', methods=['POST'])
+@login_required
+def uploadEmails():
+    if 'emailfile' not in request.files:
+        flash('No file part!', 'danger')
+        return redirect(url_for('email_list'))
+    file = request.files['emailfile']
+    if file.filename == '':
+        flash('No selected file!', 'danger')
+        return redirect(url_for('email_list'))
+    if not allowed_file(file.filename):
+        flash('Invalid file format! Only .csv files are allowed.', 'danger')
+        return redirect(url_for('email_list'))
+    # Sanitize the filename
+    filename = secure_filename(file.filename)
+    try:
+        # Save the file temporarily
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        # Validate file content as a CSV
+        with open(filepath, 'r') as csvfile:
+            csv_reader = csv.reader(csvfile)
+            header = next(csv_reader)
+            if header != ['Name', 'Email']:
+                flash('Invalid CSV format! Expected columns: Name, Email.', 'danger')
+                os.remove(filepath)  # Delete the invalid file
+                return redirect(url_for('email_list'))
+            # Collect valid rows from the file
+            unique_emails = set()
+            rows_to_insert = []
+            for row in csv_reader:
+                if len(row) < 2:
+                    continue 
+                name, email = row[0].strip(), row[1].strip()
+
+                # Validate email - it is mandatory
+                if not email:
+                    flash('Email cannot be empty. Please try again!', 'danger')
+                    os.remove(filepath)
+                    return redirect(url_for('email_list'))
+                
+                if email not in unique_emails:
+                    unique_emails.add(email)
+                    rows_to_insert.append((name, email))
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            for name, email in rows_to_insert:
+                try:
+                    cursor.execute('INSERT IGNORE INTO ca_emailList (name, email) VALUES (%s, %s)', (name, email))
+                except Exception as e:
+                    flash(f'Error inserting {email}: {e}', 'danger')
+            conn.commit()
+            cursor.close()
+            conn.close()
+        flash('File uploaded and processed successfully!', 'success')
+    except Exception as e:
+        flash(f'Error processing file: {e}', 'danger')
+    finally:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
+    return redirect(url_for('email_list'))
+
+@app.route('/getSampleFile', methods=['GET'])
+@login_required
+def getSampleFile():
+    try:
+        return send_from_directory(directory='static/sample', path='sample.csv', as_attachment=True)
+    except Exception as e:
+        flash(f"Error downloading sample file: {e}", "danger")
+        return redirect(url_for('email_list'))
 
 if __name__ == '__main__':
     app.run(port=8080, debug=True)

@@ -1,0 +1,21 @@
+#up-hr {
+  border: none;
+  border-top: 1px solid #b2b2b2;
+  color: #b2b2b2;
+  text-align: center;
+  height: 5px;
+  position: relative;
+}
+
+#up-hr::before {
+  content: "OR";
+  display: inline-block;
+  position: absolute;
+  top: -10px; 
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  padding: 0 10px;
+  font-size: 14px;
+  color: #b2b2b2;
+}
