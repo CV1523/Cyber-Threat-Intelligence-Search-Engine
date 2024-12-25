@@ -1,8 +1,8 @@
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-        <div>
+        <div style="width: 100%;">
             {% for category, message in messages %}
-                <ol class="alert alert-{{ category }} ">{{ message }}</ol>
+                <ol class="alert alert-{{ category }}" style="width: auto;">{{ message }}</ol>
             {% endfor %}
         </div>
     {% endif %}

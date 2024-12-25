@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'meta.html' %}
+    <title>Edit Email Template</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/7.6.0/tinymce.min.js" integrity="sha512-/4EpSbZW47rO/cUIb0AMRs/xWwE8pyOLf8eiDWQ6sQash5RP1Cl8Zi2aqa4QEufjeqnzTK8CLZWX7J5ZjLcc1Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            tinymce.init({
+                selector: '#richTextEditor',
+                plugins: 'code preview autoresize',
+                statusbar: true,
+                toolbar: 'undo redo | styleselect | bold italic | alignleft aligncenter alignright alignjustify | outdent indent | code preview',
+                min_height: 350,
+            });
+        });
+    </script>
+</head>
+<body>
+    {% include 'header.html' %}
+    <main class="p-5" style="background-color: rgba(102, 196, 208, 0.39); min-height: 100vh;">
+        <div class="d-sm-flex align-items-center justify-content-between mb-4 mt-4">
+            <h1 class="h4 mb-0 text-gray-300 font-weight-bold">EDIT TEMPLATE</h1>
+            {% include 'alert.html' %}
+        </div>
+        <div class="row card p-3">
+            <div class="d-flex flex-wrap w-100">
+                <form action="/saveEditTemplate" method="POST" class="w-100">
+                    <div class="form-group">
+                        <input type="text" class="form-control" id="templateID" name="templateID" value="{{ template_data['id'] }}" hidden>
+                    </div>
+                    <div class="form-group">
+                        <label for="templateName">Template Name</label>
+                        <input type="text" class="form-control" id="templateName" name="templateName" value="{{ template_data['template_name'] }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="richTextEditor">Template Content</label>
+                        <textarea id="richTextEditor" name="templateContent" required>{{ template_data['template_content'] }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success mt-3">Save Template</button>
+                </form>
+            </div>
+        </div>
+    </main>
+    {% include 'script.html' %}
+</body>
+</html>

@@ -6,3 +6,4 @@ bin/*
 .env
 ./tempP.py
 email/*
+flask-app/flask_main_bk.py

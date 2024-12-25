@@ -7,6 +7,7 @@ from flask_bcrypt import Bcrypt
 from email_validator import validate_email, EmailNotValidError
 from werkzeug.utils import secure_filename
 import csv
+from html_sanitizer import Sanitizer
 
 # Load environment variables
 load_dotenv()
@@ -291,7 +292,13 @@ def uploadEmails():
                     flash('Email cannot be empty. Please try again!', 'danger')
                     os.remove(filepath)
                     return redirect(url_for('email_list'))
-                
+                try:
+                    validate_email(email)
+                except EmailNotValidError as e:
+                    flash(f'Invalid email format: {e}', 'danger')
+                    os.remove(filepath)
+                    return redirect(url_for('email_list'))
+
                 if email not in unique_emails:
                     unique_emails.add(email)
                     rows_to_insert.append((name, email))
@@ -322,6 +329,136 @@ def getSampleFile():
     except Exception as e:
         flash(f"Error downloading sample file: {e}", "danger")
         return redirect(url_for('email_list'))
+
+@app.route('/template',methods=['GET'])
+@login_required
+def template():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(id) AS template_count from templates')
+        template_count = cursor.fetchone()['template_count']
+        cursor.execute('SELECT * from templates')
+        template_data = cursor.fetchall()
+        return render_template("template.html", template_data=template_data, template_count=template_count)
+    except Exception as e:
+        flash(f"Something went wrong!: {e}", "danger")
+    finally:
+        conn.close()
+        cursor.close()
+
+@app.route('/saveTemplate', methods=['POST'])
+@login_required
+def saveTemplate():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        template_name = request.form['templateName'].strip()
+        template_content = request.form['templateContent']
+        if not template_name:
+            flash('Template name cannot be empty.', 'danger')
+            return redirect(url_for('template'))
+        if not template_content:
+            flash('Template content cannot be empty.', 'danger')
+            return redirect(url_for('template'))
+        cursor.execute('SELECT template_name FROM templates WHERE template_name = %s', (template_name,))
+        result = cursor.fetchone()
+        if result:
+            flash('Template name already exists. Please choose a different name.', 'warning')
+            return redirect(url_for('template'))
+        cursor.execute('''INSERT INTO templates (template_name, template_content)VALUES (%s, %s)''', (template_name, template_content))
+        conn.commit()
+        flash('Template saved successfully!', 'success')
+    except Exception as e:
+        flash(f'Error saving template: {e}', 'danger')
+    finally:
+        cursor.close()
+        conn.close()
+    return redirect(url_for('template'))
+
+@app.route('/delTemplate', methods=['GET'])
+@login_required
+def delTemplate():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        template_id = request.args.get('template_id').strip()
+        cursor.execute("SELECT id from templates where id = %s", (template_id,))
+        template_exist_check = cursor.fetchone()
+        if not template_exist_check:
+            flash("Template Not Found!","danger")
+            return redirect(url_for('template'))
+        else:
+            cursor.execute("DELETE from templates where id = %s", (template_id,))
+            conn.commit()
+            flash("Template Deleted Successfully!","success")
+            return redirect(url_for('template'))
+    except Exception as e:
+        flash(f"Something went wrong: {e}", "danger")
+        return redirect(url_for('template'))
+    finally:
+        conn.close()
+        cursor.close()
+
+@app.route('/editTemplate', methods=['GET'])
+@login_required
+def editTemplate():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        template_id = request.args.get('template_id').strip()
+        cursor.execute("SELECT id from templates where id = %s", (template_id,))
+        template_exist_check = cursor.fetchone()
+        if not template_exist_check:
+            flash("Template Not Found!","danger")
+            return redirect(url_for('template'))
+        else:
+            cursor.execute("SELECT * from templates where id= %s", (template_id,))
+            template_data = cursor.fetchone()
+            if template_data:
+                return render_template('editTemplate.html', template_data=template_data)
+            else:
+                flash("Template details could not be retrieved.", "danger")
+                return redirect(url_for('template'))
+    except Exception as e:
+        flash(f"Something went wrong: {e}", "danger")
+        return redirect(url_for("template"))
+    finally:
+        conn.close()
+        cursor.close()
+
+@app.route('/saveEditTemplate', methods=['POST'])
+@login_required
+def saveEditTemplate():
+    try:
+        template_name = request.form['templateName'].strip()
+        template_content = request.form['templateContent'].strip()
+        template_id = request.form['templateID'].strip()
+        if not template_name:
+            flash("Template Name cannot be empty!", "danger")
+            return redirect(url_for("editTemplate"))
+        if not template_content:
+            flash("Template content cannot be empty!", "danger")
+            return redirect(url_for("editTemplate"))
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM templates WHERE id = %s", (template_id, ))
+        template_exist_check = cursor.fetchone()
+        if template_exist_check:
+            cursor.execute("UPDATE templates SET template_name = %s, template_content = %s WHERE id = %s", 
+                (template_name, template_content, template_id))
+            conn.commit()
+            flash("Template updated successfully!", "success")
+            return redirect(url_for('template'))
+        else:
+            flash("Template Not Found", "danger")
+            return redirect(url_for('editTemplate'))
+    except Exception as e:
+        flash(f"Something went wrong: {e}", "danger")
+        return redirect(url_for("template"))
+
+
+
 
 if __name__ == '__main__':
     app.run(port=8080, debug=True)

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'meta.html' %}
+    <title>Email Template</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/7.6.0/tinymce.min.js" integrity="sha512-/4EpSbZW47rO/cUIb0AMRs/xWwE8pyOLf8eiDWQ6sQash5RP1Cl8Zi2aqa4QEufjeqnzTK8CLZWX7J5ZjLcc1Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            tinymce.init({
+                selector: '#richTextEditor',
+                plugins: 'code preview autoresize',
+                statusbar: true,
+                toolbar: 'undo redo | styleselect | bold italic | alignleft aligncenter alignright alignjustify | outdent indent | code preview',
+                min_height: 350,
+            });
+        });
+    </script>
+</head>
+<body>
+    {% include 'header.html' %}
+    <main class="p-5" style="background-color: rgba(102, 196, 208, 0.39); min-height: 100vh;">
+        <div class="d-sm-flex align-items-center justify-content-between mb-4">
+            <h1 class="h4 mb-0 text-gray-300 font-weight-bold">EMAIL TEMPLATES</h1>
+            {% if template_count==0 %}
+                {% include 'alert.html' %}
+                {% set notem = '''<div class="position-absolute float-sm-left alert alert-warning alert-dismissible fade show" role="alert">No Templates found! Create one.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>'''%}
+                {{ notem | safe }}
+            {% endif %}
+        </div>
+        {% if template_count!=0 %}
+            <div class="row card p-3">
+                {% include 'alert.html' %}
+                <div class="album">
+                    <div class="row">
+                        {% for template in template_data %}
+                            <div class="col-md-4">
+                              <div class="card mb-4 box-shadow">
+                                <div class="render-container p-3" style="max-height: 200px; min-height: 200px; overflow-x: auto; overflow-y: auto; !important">
+                                    {{ template['template_content'] | safe }}
+                                </div>
+                                <hr>
+                                <div class="card-body">
+                                  <p class="card-text">{{ template['template_name'] }}</p>
+                                  <div class="d-flex justify-content-between align-items-center">
+                                    <div class="btn-group">
+                                      <a type="button" class="btn btn-sm btn-primary" href="{{ url_for('editTemplate', template_id=template['id']) }}">Edit</a>
+                                      <a type="button" class="btn btn-sm btn-danger" href="{{ url_for('delTemplate', template_id=template['id']) }}">Delete</a>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        <div class="d-sm-flex align-items-center justify-content-between mb-4 mt-4">
+            <h1 class="h4 mb-0 text-gray-300 font-weight-bold">ADD NEW TEMPLATE</h1>
+        </div>
+        <div class="row card p-3">
+            <div class="d-flex flex-wrap w-100">
+                <form action="/saveTemplate" method="POST" class="w-100">
+                    <div class="form-group">
+                        <label for="templateName">Template Name</label>
+                        <input type="text" class="form-control" id="templateName" name="templateName" placeholder="Enter Template Name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="richTextEditor">Template Content</label>
+                        <textarea id="richTextEditor" name="templateContent" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success mt-3">Save Template</button>
+                </form>
+            </div>
+        </div>
+    </main>
+    {% include 'script.html' %}
+</body>
+</html>
