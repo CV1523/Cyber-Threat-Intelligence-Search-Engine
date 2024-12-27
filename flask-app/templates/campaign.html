@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'meta.html' %}
+    <title>Email Campaign List</title>
+</head>
+<body>
+    {% include 'header.html' %}
+    <main class="p-5" style="background-color: rgba(102, 196, 208, 0.39); min-height: 100vh;">
+        <div class="d-sm-flex align-items-center justify-content-between mb-4">
+            <h1 class="h4 mb-0 text-gray-300 font-weight-bold">EMAIL QUEUE LIST</h1>
+        </div>
+        <div class="row card p-3">
+            <div class="table-responsive">
+                <table id="dynamicTable" class="table display table-hover table-striped table-sm">
+                    <thead id="dynamicHeader" class="thead-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>CAMPAIGN STAT</th>
+                            <th>CVE NUMBER</th>
+                            <th>CVE NAME</th>
+                            <th>RELEASE DATE</th>
+                            <th>SEVERITY</th>
+                        </tr>
+                    </thead>
+                    <tbody id="email-data">
+                        {% for item in campaign_data %}
+                            <tr>
+                                <td>{{loop.index}}</td>
+                                <td>{% if item.cve_queue_stat=='1' %}
+                                    <a class="btn btn-warning btn-sm text-white" href="#" role="button"><i class="fa-solid fa-envelope"></i> Post Mail</a>
+                                    <a class="btn btn-danger btn-sm remove-queue-btn text-white" data-cve-id="{{ item.cve_id }}" role="button">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </a>
+                                {% endif %}</td>
+                                <td>{{item.cve_number}}</td>
+                                <td>{{item.cve_name}}</td>
+                                <td>{{item.cve_pubdate}}</td>
+                                <td>{{item.cve_severity}}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal fade" id="notificationModal" tabindex="-1" role="dialog" aria-labelledby="notificationModalTitle" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="notificationModalTitle">Notification</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="notificationModalBody">
+                            <!-- Message content will be injected dynamically -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="confirmationModal" tabindex="-1" role="dialog" aria-labelledby="confirmationModalTitle" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="confirmationModalTitle">Confirm Action</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                    Are you sure you want to remove this from the queue?
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-danger" id="confirmRemove">Remove</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    {% include 'script.html' %}
+    <script>
+        $(document).ready(function() {
+            $('#dynamicTable').DataTable({
+                pageLength: 5
+            });
+        });
+        let currentCveId = null;
+        $(document).on('click', '.remove-queue-btn', function(event) {
+            event.preventDefault();
+            currentCveId = $(this).data('cve-id');
+            if (!currentCveId) {
+                showNotificationModal("Error", "CVE ID is missing!");
+                return;
+            }
+            $('#confirmationModal').modal('show');
+        });
+        $('#confirmRemove').on('click', function() {
+            if (!currentCveId) return;
+            $.ajax({
+                url: '/removeQueue',
+                type: 'GET',
+                data: { cve_id: currentCveId },
+                success: function(response) {
+                    if (response.status === "success") {
+                        location.reload();
+                    } else {
+                        showNotificationModal("Error", response.message || "Failed to update the queue.");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showNotificationModal("Error", "An error occurred: " + error);
+                }
+            });
+            $('#confirmationModal').modal('hide');
+        });
+        function showNotificationModal(title, message) {
+            $("#notificationModalTitle").text(title);
+            $("#notificationModalBody").text(message);
+            $("#notificationModal").modal("show");
+        }
+    </script>
+
+</body>
+</html>

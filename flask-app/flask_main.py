@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify
 import pymysql
 from dotenv import load_dotenv
 import os
@@ -456,9 +456,82 @@ def saveEditTemplate():
     except Exception as e:
         flash(f"Something went wrong: {e}", "danger")
         return redirect(url_for("template"))
+    finally:
+        conn.close()
+        cursor.close()
 
+@app.route('/addCVEQueue', methods=['GET'])
+@login_required
+def addCVEQueue():
+    conn = None
+    cursor = None
+    try:
+        cve_id = request.args.get('cve_id').strip()
+        conn = get_db_connection()
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
+        cursor.execute("SELECT cve_queue_stat FROM ca_cve WHERE cve_id = %s", (cve_id,))
+        exist_queue_status = cursor.fetchone()
+        if not exist_queue_status:
+            return jsonify({"status": "error", "message": "CVE Not Found!"})
+        queue_status = int(exist_queue_status['cve_queue_stat'])
+        if queue_status == 1:
+            cursor.execute("UPDATE ca_cve SET cve_queue_stat = '0' WHERE cve_id = %s", (cve_id,))
+            conn.commit()
+            return jsonify({"status": "success", "message": "CVE successfully removed from the queue!", "queue_status": "0"})
+        elif queue_status == 0:
+            cursor.execute("UPDATE ca_cve SET cve_queue_stat = '1' WHERE cve_id = %s", (cve_id,))
+            conn.commit()
+            return jsonify({"status": "success", "message": "CVE successfully added to the queue!", "queue_status": "1"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
+@app.route('/getcampaign', methods=['GET'])
+@login_required
+def getcampaign():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * from ca_cve WHERE cve_queue_stat = '1' ORDER BY cve_id")
+        campaign_data = cursor.fetchall()
+        if campaign_data:
+            return render_template("campaign.html", campaign_data=campaign_data)
+        else:
+            return render_template("campaign.html")
+    except Exception as e:
+        flash(f"Something went wrong: {e}", "danger")
+        return redirect(url_for("home"))
+    finally:
+        conn.close()
+        cursor.close()
 
+@app.route('/removeQueue', methods=['GET'])
+@login_required
+def removeQueue():
+    try:
+        cve_id = request.args.get('cve_id').strip()
+        conn = get_db_connection()
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
+        cursor.execute("SELECT cve_queue_stat FROM ca_cve WHERE cve_id = %s", (cve_id,))
+        exist_queue_status = cursor.fetchone()
+        if not exist_queue_status:
+            return jsonify({"status": "error", "message": "CVE not found in the database!"})
+        queue_status = int(exist_queue_status['cve_queue_stat'])
+        if queue_status == 1:
+            cursor.execute("UPDATE ca_cve SET cve_queue_stat = '0' WHERE cve_id = %s", (cve_id,))
+            conn.commit()
+            return jsonify({"status": "success", "message": "CVE successfully removed from the queue!"})
+        else:
+            return jsonify({"status": "error", "message": "CVE is not queued!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+    finally:
+        cursor.close()
+        conn.close()
 
 if __name__ == '__main__':
     app.run(port=8080, debug=True)
