@@ -490,6 +490,36 @@ def addCVEQueue():
         if conn:
             conn.close()
 
+@app.route('/addNewsQueue', methods=['GET'])
+@login_required
+def addNewsQueue():
+    conn = None
+    cursor = None
+    try:
+        news_id = request.args.get('news_id').strip()
+        conn = get_db_connection()
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
+        cursor.execute("SELECT news_queue_stat FROM ca_news WHERE news_id = %s", (news_id,))
+        exist_queue_status = cursor.fetchone()
+        if not exist_queue_status:
+            return jsonify({"status": "error", "message": "News Not Found!"})
+        queue_status = int(exist_queue_status['news_queue_stat'])
+        if queue_status == 1:
+            cursor.execute("UPDATE ca_news SET news_queue_stat = '0' WHERE news_id = %s", (news_id,))
+            conn.commit()
+            return jsonify({"status": "success", "message": "News successfully removed from the queue!", "queue_status": "0"})
+        elif queue_status == 0:
+            cursor.execute("UPDATE ca_news SET news_queue_stat = '1' WHERE news_id = %s", (news_id,))
+            conn.commit()
+            return jsonify({"status": "success", "message": "News successfully added to the queue!", "queue_status": "1"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
 @app.route('/getcampaign', methods=['GET'])
 @login_required
 def getcampaign():
@@ -498,8 +528,10 @@ def getcampaign():
         cursor = conn.cursor()
         cursor.execute("SELECT * from ca_cve WHERE cve_queue_stat = '1' ORDER BY cve_id")
         campaign_data = cursor.fetchall()
+        cursor.execute("SELECT * from ca_news WHERE news_queue_stat = '1' ORDER BY news_id")
+        news_data = cursor.fetchall()
         if campaign_data:
-            return render_template("campaign.html", campaign_data=campaign_data)
+            return render_template("campaign.html", campaign_data=campaign_data, news_data=news_data)
         else:
             return render_template("campaign.html")
     except Exception as e:
@@ -509,9 +541,9 @@ def getcampaign():
         conn.close()
         cursor.close()
 
-@app.route('/removeQueue', methods=['GET'])
+@app.route('/removeCVEQueue', methods=['GET'])
 @login_required
-def removeQueue():
+def removeCVEQueue():
     try:
         cve_id = request.args.get('cve_id').strip()
         conn = get_db_connection()
@@ -532,6 +564,31 @@ def removeQueue():
     finally:
         cursor.close()
         conn.close()
+
+@app.route('/removeNewsQueue', methods=['GET'])
+@login_required
+def removeNewsQueue():
+    try:
+        news_id = request.args.get('news_id').strip()
+        conn = get_db_connection()
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
+        cursor.execute("SELECT news_queue_stat FROM ca_news WHERE news_id = %s", (news_id,))
+        exist_queue_status = cursor.fetchone()
+        if not exist_queue_status:
+            return jsonify({"status": "error", "message": "News not found in the database!"})
+        queue_status = int(exist_queue_status['news_queue_stat'])
+        if queue_status == 1:
+            cursor.execute("UPDATE ca_news SET news_queue_stat = '0' WHERE news_id = %s", (news_id,))
+            conn.commit()
+            return jsonify({"status": "success", "message": "News successfully removed from the queue!"})
+        else:
+            return jsonify({"status": "error", "message": "News is not queued!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+    finally:
+        cursor.close()
+        conn.close()
+
 
 if __name__ == '__main__':
     app.run(port=8080, debug=True)

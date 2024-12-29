@@ -10,11 +10,23 @@
         <div class="d-sm-flex align-items-center justify-content-between mb-4">
             <h1 class="h4 mb-0 text-gray-300 font-weight-bold">EMAIL QUEUE LIST</h1>
         </div>
-        <div class="row card p-3">
+        <div class="card shadow h-100 py-4 px-4 mb-4">
+            <div class="d-flex justify-content-end mb-3">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-danger dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Toggle Table
+                    </button>
+                    <div class="dropdown-menu">
+                        <a class="dropdown-item" onclick="showTable('cve')">CVE DATA</a>
+                        <a class="dropdown-item" onclick="showTable('news')">NEWS DATA</a>
+                    </div>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table id="dynamicTable" class="table display table-hover table-striped table-sm">
                     <thead id="dynamicHeader" class="thead-dark">
                         <tr>
+                            <!-- Initial headers for CVE -->
                             <th>#</th>
                             <th>CAMPAIGN STAT</th>
                             <th>CVE NUMBER</th>
@@ -23,22 +35,8 @@
                             <th>SEVERITY</th>
                         </tr>
                     </thead>
-                    <tbody id="email-data">
-                        {% for item in campaign_data %}
-                            <tr>
-                                <td>{{loop.index}}</td>
-                                <td>{% if item.cve_queue_stat=='1' %}
-                                    <a class="btn btn-warning btn-sm text-white" href="#" role="button"><i class="fa-solid fa-envelope"></i> Post Mail</a>
-                                    <a class="btn btn-danger btn-sm remove-queue-btn text-white" data-cve-id="{{ item.cve_id }}" role="button">
-                                        <i class="fa-solid fa-xmark"></i>
-                                    </a>
-                                {% endif %}</td>
-                                <td>{{item.cve_number}}</td>
-                                <td>{{item.cve_name}}</td>
-                                <td>{{item.cve_pubdate}}</td>
-                                <td>{{item.cve_severity}}</td>
-                            </tr>
-                        {% endfor %}
+                    <tbody id="dynamicData">
+                        <!-- Table rows will be dynamically populated here -->
                     </tbody>
                 </table>
             </div>
@@ -89,6 +87,7 @@
             });
         });
         let currentCveId = null;
+        let currentNewsId = null;
         $(document).on('click', '.remove-queue-btn', function(event) {
             event.preventDefault();
             currentCveId = $(this).data('cve-id');
@@ -98,12 +97,21 @@
             }
             $('#confirmationModal').modal('show');
         });
+        $(document).on('click', '.remove-news-queue-btn', function(event) {
+            event.preventDefault();
+            currentNewsId = $(this).data('news-id');
+            if (!currentNewsId) {
+                showNotificationModal("Error", "News ID is missing!");
+                return;
+            }
+            $('#confirmationModal').modal('show');
+        });
         $('#confirmRemove').on('click', function() {
-            if (!currentCveId) return;
+            if (!currentNewsId) return;
             $.ajax({
-                url: '/removeQueue',
+                url: '/removeNewsQueue',
                 type: 'GET',
-                data: { cve_id: currentCveId },
+                data: { news_id: currentNewsId },
                 success: function(response) {
                     if (response.status === "success") {
                         location.reload();
@@ -123,6 +131,71 @@
             $("#notificationModal").modal("show");
         }
     </script>
+    <script>
+        const cveData = {{ campaign_data|tojson }};
+        const newsData = {{ news_data|tojson }};
+        function showTable(type) {
+            const tableHeader = document.getElementById("dynamicHeader");
+            const tableBody = document.getElementById("dynamicData");
 
+            tableBody.innerHTML = "";
+
+            if (type === "cve") {
+                tableHeader.innerHTML = `
+                    <tr>
+                        <th>#</th>
+                        <th>CAMPAIGN STAT</th>
+                        <th>CVE NUMBER</th>
+                        <th>CVE NAME</th>
+                        <th>RELEASE DATE</th>
+                        <th>SEVERITY</th>
+                    </tr>
+                `;
+                cveData.forEach((item, index) => {
+
+                    const row = `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td><a class="btn btn-warning btn-sm text-white" href="#" role="button"><i class="fa-solid fa-envelope"></i> Post Mail</a>
+                                    <a class="btn btn-danger btn-sm remove-queue-btn text-white" data-cve-id="${item.cve_id}" role="button">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </a></td>
+                            <td>${item.cve_number}</td>
+                            <td>${item.cve_name}</td>
+                            <td>${item.cve_pubdate}</td>
+                            <td>${item.cve_severity}</td>
+                        </tr>
+                    `;
+                    tableBody.insertAdjacentHTML("beforeend", row);
+                });
+            } else if (type === "news") {
+                tableHeader.innerHTML = `
+                    <tr>
+                        <th>#</th>
+                        <th>QUEUE STAT</th>
+                        <th>NEWS TITLE</th>
+                        <th>RELEASE DATE</th>
+                        <th>NEWS DESCRIPTION</th>
+                    </tr>
+                `;
+                newsData.forEach((item, index) => {
+                    const row = `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td><a class="btn btn-warning btn-sm text-white" href="#" role="button"><i class="fa-solid fa-envelope"></i> Post Mail</a>
+                                    <a class="btn btn-danger btn-sm remove-news-queue-btn text-white" data-news-id="${item.news_id}" role="button">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </a></td>
+                            <td>${item.news_title}</td>
+                            <td>${item.news_pubdate}</td>
+                            <td>${item.news_description}</td>
+                        </tr>
+                    `;
+                    tableBody.insertAdjacentHTML("beforeend", row);
+                });
+            }
+        }
+        document.addEventListener("DOMContentLoaded", () => showTable("cve"));
+    </script>
 </body>
 </html>

@@ -144,8 +144,6 @@
                 success: function (response) {
                     if (response.status === "success") {
                         showNotificationModal("Success", response.message);
-
-                        // Update the button dynamically
                         const queueStatus = response.queue_status;
                         if (queueStatus === "0") {
                             $(buttonElement)
@@ -164,7 +162,45 @@
                                 .removeClass("btn-primary btn-danger")
                                 .addClass("btn-success")
                                 .html('<i class="fa-solid fa-envelope"></i> Sent')
-                                .removeAttr("onclick"); // Disable further actions
+                                .removeAttr("onclick");
+                        }
+                    } else {
+                        showNotificationModal("Error", response.message || "Failed to update the queue.");
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("Error:", error);
+                    showNotificationModal("Error", "An error occurred: " + error);
+                },
+            });
+        }
+        function addNewsToQueue(newsId, buttonElement) {
+            $.ajax({
+                url: "{{ url_for('addNewsQueue') }}",
+                method: "GET",
+                data: { news_id: newsId },
+                success: function (response) {
+                    if (response.status === "success") {
+                        showNotificationModal("Success", response.message);
+                        const queueStatus = response.queue_status;
+                        if (queueStatus === "0") {
+                            $(buttonElement)
+                                .removeClass("btn-danger btn-success")
+                                .addClass("btn-primary")
+                                .html('+ Queue')
+                                .attr("onclick", `addNewsToQueue('${newsId}', this)`);
+                        } else if (queueStatus === "1") {
+                            $(buttonElement)
+                                .removeClass("btn-primary btn-success")
+                                .addClass("btn-danger")
+                                .html('<i class="fa-solid fa-xmark"></i> Remove')
+                                .attr("onclick", `addNewsToQueue('${newsId}', this)`);
+                        } else if (queueStatus === "sent") {
+                            $(buttonElement)
+                                .removeClass("btn-primary btn-danger")
+                                .addClass("btn-success")
+                                .html('<i class="fa-solid fa-envelope"></i> Sent')
+                                .removeAttr("onclick");
                         }
                     } else {
                         showNotificationModal("Error", response.message || "Failed to update the queue.");
@@ -177,11 +213,8 @@
             });
         }
         function showNotificationModal(title, message) {
-            // Dynamically set the modal title and body content
             $("#notificationModalTitle").text(title);
             $("#notificationModalBody").text(message);
-
-            // Show the modal
             $("#notificationModal").modal("show");
         }
     </script>
@@ -242,10 +275,10 @@
                 `;
                 newsData.forEach((item, index) => {
                     const queueButton =
-                        item.cve_queue_stat === "0"
-                            ? `<a class="btn btn-primary btn-sm" href="javascript:void(0);" onclick="addToQueue('${item.news_id}', this)" role="button"><i class="fa-solid fa-plus"></i> Queue</a>`
+                        item.news_queue_stat === "0"
+                            ? `<a class="btn btn-primary btn-sm" href="javascript:void(0);" onclick="addNewsToQueue('${item.news_id}', this)" role="button"><i class="fa-solid fa-plus"></i> Queue</a>`
                             : item.news_queue_stat === "1"
-                            ? `<a class="btn btn-danger btn-sm" href="javascript:void(0);" onclick="addToQueue('${item.news_id}', this)" role="button"><i class="fa-solid fa-xmark"></i> Remove</a>`
+                            ? `<a class="btn btn-danger btn-sm" href="javascript:void(0);" onclick="addNewsToQueue('${item.news_id}', this)" role="button"><i class="fa-solid fa-xmark"></i> Remove</a>`
                             : `<a class="btn btn-success btn-sm" href="javascript:void(0);"><i class="fa-solid fa-envelope"></i> Sent</a>`;
                             
                     const row = `
@@ -262,30 +295,6 @@
                 });
             }
         }
-        // $(".queue-btn").on("click", function () {
-        //     const cveId = $(this).data("cve-id");
-        //     if (cveId) {
-        //         addToQueue(cveId);
-        //     }
-        // });
-        // function addToQueue(cveId) {
-        //     $.ajax({
-        //         url: "{{ url_for('addCVEQueue') }}",
-        //         method: "GET",
-        //         data: { cve_id: cveId },
-        //         success: function (response) {
-        //             if (response.status === "success") {
-        //                 alert("CVE successfully added to the queue!");
-        //                 location.reload(); // Refresh the table to reflect the updated status
-        //             } else {
-        //                 alert(response.message || "Failed to add CVE to the queue.");
-        //             }
-        //         },
-        //         error: function (xhr, status, error) {
-        //             alert("An error occurred: " + error);
-        //         },
-        //     });
-        // }
         document.addEventListener("DOMContentLoaded", () => showTable("cve"));
     </script>
     <script>
