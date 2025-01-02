@@ -1,102 +1,44 @@
-import os
+import re
 
-output_file_path = 'email/templates/toPush/index.html'
+def replace_template_content(output_file, rendered_content):
+    try:
+        placeholder_comment = "<!-- comment for replacing rendered template content -->"
+        with open(output_file, "r") as f:
+            file_content = f.read()
+        updated_content = re.sub(re.escape(placeholder_comment), rendered_content, file_content, count=1)
 
-def generate_EmailTemplate(cve_details):
-    with open('email/templates/base.html', 'r', encoding='utf-8') as file:
-        template = file.read()
+        with open("email/templateToPush/outtopush.html", "w") as f:
+            f.write(updated_content)
+        return 1
+    except Exception as e:
+        return 0
 
-    cve_entries = ""
+def render_email_template(template, email_data):
+    output_file = "email/finalTemplate/baseout.html"
+    try:
+        start_marker = "(_start)"
+        end_marker = "(_end)"
+        start_index = template.find(start_marker)
+        end_index = template.find(end_marker) + len(end_marker)
+        if start_index == -1 or end_index == -1:
+            return "Missing (_start) or (_end) in the template"
 
-    for index, cve in enumerate(cve_details):
-        cve_entry = f"""
-            <div id="emailBody">
-                <h2 class="cve-title" style="font-weight: bold;">
-                    {cve['cve_name']}
-                </h2>
-                <div class="cve-description" style="margin-top: 10px;
-            padding: 5px;">
-                    <div class="cve-table">
-                        <table class="center" style="padding: 10px; 
-            border-collapse: collapse; margin-left: auto;
-            margin-right: auto;">
-                            <thead>
-                                <th style="text-align: center;
-                                padding: 6px;
-                                border: 1px solid black;
-                                border-collapse: collapse;">CVE NUMBER</th>
-                                <th style="text-align: center;
-                                padding: 6px;
-                                border: 1px solid black;
-                                border-collapse: collapse;">SEVERITY</th>
-                            </thead>
-                            <tbody>
-                                <tr style="text-align: center;
-                                padding: 6px;
-                                border: 1px solid black;
-                                border-collapse: collapse;">
-                                    <td style="text-align: center;
-                                padding: 6px;
-                                border: 1px solid black;
-                                border-collapse: collapse;">{cve['cve_number']}</td>
-                                    <td style="text-align: center;
-                                padding: 6px;
-                                border: 1px solid black;
-                                border-collapse: collapse;">{cve['cve_severity']}/10</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="cve-actualdesc" style="margin-top: 10px;">
-                        <p style="text-align: justify; text-justify: inter-word;">
-                            &ensp;{cve['cve_description']}
-                        </p>
-                        <div class="cve-pubDate" style="margin-top: 30px;">
-                            <p>
-                                <strong>Published Date:</strong>  {cve['cve_pubdate']}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            """
+        dynamic_block = template[start_index + len(start_marker):end_index - len(end_marker)]
+        rendered_blocks = ""
+        for i, cve in enumerate(email_data):
+            rendered_block = dynamic_block
+            for placeholder, value in cve.items():
+                rendered_block = rendered_block.replace(f"(.{placeholder})", str(value))
+            if i == len(email_data) - 1:
+                rendered_block = rendered_block.replace("<hr>", "")
+            rendered_blocks += rendered_block
+        final_template = template.replace(template[start_index:end_index], rendered_blocks)
         
-        if index < len(cve_details) - 1:
-            cve_entry += """
-            <div class="horizontal-line" style="width: 100%;
-            display: block;">
-                <hr style="border-width: 1px;">
-            </div>
-            """
-        
-        cve_entries += cve_entry
+        # print(final_template)
+        final_render = replace_template_content(output_file, final_template)
+        if not final_render:
+            return "Something went wrong!"
+        return "Successfully Generated!"    
 
-    updated_html = template.replace('<!-- CVE_ENTRIES_PLACEHOLDER -->', cve_entries)
-
-    with open(output_file_path, 'w', encoding='utf-8') as output_file:
-        output_file.write(updated_html)
-
-    print(f"\nGenerated Template into: {output_file_path}")
-
-if __name__ == "__main__":
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    os.chdir(script_dir)
-
-# Example usage
-# cve_details = [
-#     {
-#         'cve_name': 'Octopus Server Improper Access Control',
-#         'cve_number': 'CVE-2024-4811',
-#         'cve_severity': '2.2',
-#         'cve_description': 'In affected versions of Octopus Server under certain conditions, a user with specific role assignments can access restricted project artifacts.',
-#         'cve_pubdate': 'Thu, 25 Jul 2024 05:15:26 +0000'
-#     },
-#     {
-#         'cve_name': 'GitLab CE/EE Artifact Information Disclosure',
-#         'cve_number': 'CVE-2024-7057',
-#         'cve_severity': '4.3',
-#         'cve_description': 'An information disclosure vulnerability in GitLab CE/EE affecting all versions starting from 16.7 prior to 17.0.5, starting from 17.1 prior to 17.1.3, and starting from 17.2 prior to 17.2.1 where job artifacts can be inappropriately exposed to users lacking the proper authorization level.',
-#         'cve_pubdate': 'Thu, 25 Jul 2024 01:15:10 +0000'
-#     }
-# ]
-# generate_EmailTemplate(cve_details)
+    except Exception as e:
+        print(e)

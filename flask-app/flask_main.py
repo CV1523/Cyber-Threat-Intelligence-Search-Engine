@@ -8,6 +8,11 @@ from email_validator import validate_email, EmailNotValidError
 from werkzeug.utils import secure_filename
 import csv
 from html_sanitizer import Sanitizer
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from makeCampaign import makeCampaign
+from makeEmailTemplate import render_email_template
 
 # Load environment variables
 load_dotenv()
@@ -525,15 +530,12 @@ def addNewsQueue():
 def getcampaign():
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
         cursor.execute("SELECT * from ca_cve WHERE cve_queue_stat = '1' ORDER BY cve_id")
         campaign_data = cursor.fetchall()
         cursor.execute("SELECT * from ca_news WHERE news_queue_stat = '1' ORDER BY news_id")
         news_data = cursor.fetchall()
-        if campaign_data:
-            return render_template("campaign.html", campaign_data=campaign_data, news_data=news_data)
-        else:
-            return render_template("campaign.html")
+        return render_template("campaign.html", campaign_data=campaign_data, news_data=news_data)
     except Exception as e:
         flash(f"Something went wrong: {e}", "danger")
         return redirect(url_for("home"))
@@ -544,6 +546,8 @@ def getcampaign():
 @app.route('/removeCVEQueue', methods=['GET'])
 @login_required
 def removeCVEQueue():
+    conn = None
+    cursor = None
     try:
         cve_id = request.args.get('cve_id').strip()
         conn = get_db_connection()
@@ -568,6 +572,8 @@ def removeCVEQueue():
 @app.route('/removeNewsQueue', methods=['GET'])
 @login_required
 def removeNewsQueue():
+    conn = None
+    cursor = None
     try:
         news_id = request.args.get('news_id').strip()
         conn = get_db_connection()
@@ -589,6 +595,87 @@ def removeNewsQueue():
         cursor.close()
         conn.close()
 
+@app.route("/fetchTemplates", methods=['GET'])
+@login_required
+def fetchTemplates():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
+        cursor.execute("SELECT id, template_name FROM templates")
+        template_data = cursor.fetchall()
+        if not template_data:
+            return jsonify({"status": "error", "message": "No templates found"}), 404
+        return jsonify({"status": "success", "templates": template_data}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Something went wrong: {e}"}), 500
+
+@app.route("/sendEmails", methods=["POST"])
+@login_required
+def send_emails():
+    try:
+        data = request.json
+        items = data.get("items", [])
+        template_id = data.get("template_id")
+        if not items or not template_id:
+            return jsonify({"status": "error", "message": "Missing items or template ID."}), 400
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT template_content FROM templates WHERE id = %s", (template_id,))
+        result = cursor.fetchone()
+        if not result:
+            return jsonify({"status": "error", "message": "Template not found."}), 404
+        
+        template = result.get("template_content")
+        email_data = []
+        for item in items:
+            item_id = item.get("id")
+            item_type = item.get("type")
+            if not item_id or not item_type:
+                continue
+            email_data_temp = []
+            if item_type == "cve":
+                cursor.execute("SELECT cve_number from ca_cve WHERE cve_id = %s AND ca_type='cve'", (item_id))
+                exist_type_check = cursor.fetchone()
+                if exist_type_check:
+                    cursor.execute(""" SELECT cve_number AS cve_number, 
+                                    cve_name AS title, 
+                                    cve_description AS description, 
+                                    cve_link AS link, 
+                                    cve_severity AS severity, 
+                                    cve_pubdate AS pub_date FROM ca_cve WHERE cve_id = %s""",
+                    (item_id,))
+                    email_data_temp = cursor.fetchall()
+            elif item_type == "news":
+                cursor.execute("SELECT news_title from ca_news WHERE news_id = %s AND ca_type='news'", (item_id))
+                exist_type_check = cursor.fetchone()
+                if exist_type_check:
+                    cursor.execute("""SELECT news_id AS id, 
+                                    news_title AS title, 
+                                    news_description AS description, 
+                                    news_link AS link, 
+                                    news_bannerUrl AS img_URL,
+                                    news_pubdate AS pub_date FROM ca_news WHERE news_id = %s""", 
+                    (item_id,))
+                    email_data_temp = cursor.fetchall()
+            else:
+                email_data_temp = []
+
+            if email_data_temp:
+                email_data.extend(email_data_temp)
+
+        if not email_data:
+            return jsonify({"status": "error", "message": "No data found for the selected items."}), 400
+        rendered_email = render_email_template(template, email_data)
+
+        if rendered_email=="Missing (_start) or (_end) in the template":
+            return jsonify({"status":"error","message":"Missing (_start) or (_end) in the template"})
+
+        return jsonify({"status": "success", "message": "Emails sent successfully."}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        conn.close()
+        cursor.close()
 
 if __name__ == '__main__':
     app.run(port=8080, debug=True)

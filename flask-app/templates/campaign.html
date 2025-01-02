@@ -12,23 +12,27 @@
         </div>
         <div class="card shadow h-100 py-4 px-4 mb-4">
             <div class="d-flex justify-content-end mb-3">
-                <div class="btn-group">
-                    <button type="button" class="btn btn-danger dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        Toggle Table
+                <div class="btn-group" role="group" aria-label="Button group with nested dropdown">
+                    <div class="btn-group" role="group">
+                    <button id="btnGroupDrop1" type="button" class="btn btn-danger dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                      Toggle Table
                     </button>
-                    <div class="dropdown-menu">
-                        <a class="dropdown-item" onclick="showTable('cve')">CVE DATA</a>
-                        <a class="dropdown-item" onclick="showTable('news')">NEWS DATA</a>
+                    <div class="dropdown-menu" aria-labelledby="btnGroupDrop1">
+                      <a class="dropdown-item" onclick="showTable('cve')">CVE DATA</a>
+                      <a class="dropdown-item" onclick="showTable('news')">NEWS DATA</a>
                     </div>
+                    </div>
+                    <button id="postEmailBtn" class="btn btn-primary" disabled>Post Email</button>
                 </div>
             </div>
             <div class="table-responsive">
-                <table id="dynamicTable" class="table display table-hover table-striped table-sm">
-                    <thead id="dynamicHeader" class="thead-dark">
+                <table id="dynamicTable" class="table display table-hover table-striped table-sm table-responsive">
+                    <thead id="dynamicHeader" class="thead-dark text-center">
                         <tr>
                             <!-- Initial headers for CVE -->
                             <th>#</th>
-                            <th>CAMPAIGN STAT</th>
+                            <th>SELECT</th>
+                            <th>QUEUE STATUS</th>
                             <th>CVE NUMBER</th>
                             <th>CVE NAME</th>
                             <th>RELEASE DATE</th>
@@ -78,6 +82,29 @@
                 </div>
             </div>
         </div>
+        <!-- Template Selection Modal -->
+        <div class="modal fade" id="templateModal" tabindex="-1" role="dialog" aria-labelledby="templateModalTitle" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="templateModalTitle">Select Email Template</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="templateModalBody">
+                        <!-- Template options will be populated here -->
+                    </div>
+                    <div class="modal-footer">
+                        <input type="hidden" id="selectedCveId">
+                        <input type="hidden" id="selectedNewsId">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="sendEmailButton">Send Email</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
     {% include 'script.html' %}
     <script>
@@ -86,40 +113,34 @@
                 pageLength: 5
             });
         });
-        let currentCveId = null;
-        let currentNewsId = null;
-        $(document).on('click', '.remove-queue-btn', function(event) {
+        let currentItemId = null;
+        let currentType = null;
+        $(document).on('click', '.remove-queue-btn, .remove-news-queue-btn', function (event) {
             event.preventDefault();
-            currentCveId = $(this).data('cve-id');
-            if (!currentCveId) {
-                showNotificationModal("Error", "CVE ID is missing!");
+            currentItemId = $(this).data('cve-id') || $(this).data('news-id');
+            currentType = $(this).hasClass('remove-queue-btn') ? 'cve' : 'news';
+            if (!currentItemId) {
+                showNotificationModal("Error", "ID is missing!");
                 return;
             }
             $('#confirmationModal').modal('show');
         });
-        $(document).on('click', '.remove-news-queue-btn', function(event) {
-            event.preventDefault();
-            currentNewsId = $(this).data('news-id');
-            if (!currentNewsId) {
-                showNotificationModal("Error", "News ID is missing!");
-                return;
-            }
-            $('#confirmationModal').modal('show');
-        });
-        $('#confirmRemove').on('click', function() {
-            if (!currentNewsId) return;
+        $('#confirmRemove').on('click', function () {
+            if (!currentItemId || !currentType) return;
+            const route = currentType === 'cve' ? '/removeCVEQueue' : '/removeNewsQueue';
+            const paramKey = currentType === 'cve' ? 'cve_id' : 'news_id';
             $.ajax({
-                url: '/removeNewsQueue',
+                url: route,
                 type: 'GET',
-                data: { news_id: currentNewsId },
-                success: function(response) {
+                data: { [paramKey]: currentItemId },
+                success: function (response) {
                     if (response.status === "success") {
                         location.reload();
                     } else {
                         showNotificationModal("Error", response.message || "Failed to update the queue.");
                     }
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     showNotificationModal("Error", "An error occurred: " + error);
                 }
             });
@@ -144,7 +165,8 @@
                 tableHeader.innerHTML = `
                     <tr>
                         <th>#</th>
-                        <th>CAMPAIGN STAT</th>
+                        <th>SELECT</th>
+                        <th>QUEUE STATUS</th>
                         <th>CVE NUMBER</th>
                         <th>CVE NAME</th>
                         <th>RELEASE DATE</th>
@@ -152,26 +174,29 @@
                     </tr>
                 `;
                 cveData.forEach((item, index) => {
-
                     const row = `
-                        <tr>
-                            <td>${index + 1}</td>
-                            <td><a class="btn btn-warning btn-sm text-white" href="#" role="button"><i class="fa-solid fa-envelope"></i> Post Mail</a>
+                            <tr>
+                                <td>${index+1}</td>
+                                <td><input type="checkbox" class="select-item" data-id="${item.cve_id}" data-type="cve"></td>
+                                <td>
+                                    
                                     <a class="btn btn-danger btn-sm remove-queue-btn text-white" data-cve-id="${item.cve_id}" role="button">
-                                        <i class="fa-solid fa-xmark"></i>
-                                    </a></td>
-                            <td>${item.cve_number}</td>
-                            <td>${item.cve_name}</td>
-                            <td>${item.cve_pubdate}</td>
-                            <td>${item.cve_severity}</td>
-                        </tr>
-                    `;
+                                        <i class="fa-solid fa-xmark"></i> Remove
+                                    </a>
+                                </td>
+                                <td>${item.cve_number}</td>
+                                <td>${item.cve_name}</td>
+                                <td>${item.cve_pubdate}</td>
+                                <td>${item.cve_severity}</td>
+                            </tr>
+                        `;
                     tableBody.insertAdjacentHTML("beforeend", row);
                 });
             } else if (type === "news") {
                 tableHeader.innerHTML = `
                     <tr>
                         <th>#</th>
+                        <th>SELECT</th>
                         <th>QUEUE STAT</th>
                         <th>NEWS TITLE</th>
                         <th>RELEASE DATE</th>
@@ -180,22 +205,149 @@
                 `;
                 newsData.forEach((item, index) => {
                     const row = `
-                        <tr>
-                            <td>${index + 1}</td>
-                            <td><a class="btn btn-warning btn-sm text-white" href="#" role="button"><i class="fa-solid fa-envelope"></i> Post Mail</a>
+                            <tr>
+                                <td>${index+1}</td>
+                                <td><input type="checkbox" class="select-item" data-id="${item.news_id}" data-type="news"></td>
+                                <td>
+                                    
                                     <a class="btn btn-danger btn-sm remove-news-queue-btn text-white" data-news-id="${item.news_id}" role="button">
-                                        <i class="fa-solid fa-xmark"></i>
-                                    </a></td>
-                            <td>${item.news_title}</td>
-                            <td>${item.news_pubdate}</td>
-                            <td>${item.news_description}</td>
-                        </tr>
-                    `;
+                                        <i class="fa-solid fa-xmark"></i> Remove
+                                    </a>
+                                </td>
+                                <td>${item.news_title}</td>
+                                <td>${item.news_pubdate}</td>
+                                <td class="text-justify">${item.news_description}</td>
+                            </tr>
+                        `;
                     tableBody.insertAdjacentHTML("beforeend", row);
                 });
             }
         }
         document.addEventListener("DOMContentLoaded", () => showTable("cve"));
+    </script>
+    <script>
+        $(document).on('click', '.post-mail-btn', function () {
+            const cveId = $(this).data('cve-id') || null;
+            const newsId = $(this).data('news-id') || null;
+            if (!cveId && !newsId) {
+                showNotificationModal("Error", "ID missing!");
+                return;
+            }
+            $.ajax({
+                url: "/fetchTemplates",
+                method: "GET",
+                success: function (response) {
+                    if (response.status === "success") {
+                        const templates = response.templates;
+                        const modalBody = $('#templateModalBody');
+                        modalBody.empty();
+                        templates.forEach((template) => {
+                            const templateOption = `
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="template" id="template-${template.id}" value="${template.id}">
+                                    <label class="form-check-label" for="template-${template.id}">
+                                        <strong>${template.template_name}</strong>
+                                    </label>
+                                </div>
+                            `;
+                            modalBody.append(templateOption);
+                        });
+                        $('#selectedCveId').val(cveId);
+                        $('#selectedNewsId').val(newsId);
+                        $('#templateModal').modal('show');
+                    } else {
+                        showNotificationModal("Error", response.message || "Failed to fetch templates.");
+                    }
+                },
+                error: function (xhr, status, error) {
+                    showNotificationModal("Error", "An error occurred: " + error);
+                }
+            });
+        });
+    </script>
+    <script>
+        let selectedItems = [];
+        $(document).on("change", ".select-item", function () {
+            const id = $(this).data("id");
+            const type = $(this).data("type");
+            if (this.checked) {
+                selectedItems.push({ id, type });
+            } else {
+                selectedItems = selectedItems.filter((item) => item.id !== id || item.type !== type);
+            }
+            $("#postEmailBtn").prop("disabled", selectedItems.length === 0);
+        });
+    </script>
+    <script>
+        $("#postEmailBtn").on("click", function () {
+            if (selectedItems.length === 0) {
+                showNotificationModal("Error", "No items selected!");
+                return;
+            }
+            $.ajax({
+                url: "/fetchTemplates",
+                method: "GET",
+                success: function (response) {
+                    if (response.status === "success") {
+                        const templates = response.templates;
+                        const modalBody = $('#templateModalBody');
+                        modalBody.empty();
+                        templates.forEach((template) => {
+                            const templateOption = `
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="template" id="template-${template.id}" value="${template.id}">
+                                    <label class="form-check-label" for="template-${template.id}">
+                                        <strong>${template.template_name}</strong>
+                                    </label>
+                                </div>
+                            `;
+                            modalBody.append(templateOption);
+                        });
+                        $('#templateModal').modal('show');
+                    } else {
+                        showNotificationModal("Error", response.message || "Failed to fetch templates.");
+                    }
+                },
+                error: function (xhr, status, error) {
+                    showNotificationModal("Error", "An error occurred: " + error);
+                }
+            });
+        });
+    </script>
+    <script>
+        $("#sendEmailButton").on("click", function () {
+            var button = $(this);
+            button.html('<i class="fa-duotone fa-solid fa-spinner fa-spin-pulse"></i> Sending');
+            const selectedTemplate = $("input[name='template']:checked").val();
+            if (!selectedTemplate) {
+                showNotificationModal("Error", "No template selected!");
+                button.text("Send Email");
+                return;
+            }
+            $.ajax({
+                url: "/sendEmails",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    items: selectedItems,
+                    template_id: selectedTemplate,
+                }),
+                success: function (response) {
+                    if (response.status === "success") {
+                        showNotificationModal("Success", "Emails sent successfully!");
+                        $('#templateModal').modal('hide');
+                        // location.reload();
+                    } else {
+                        showNotificationModal("Error", response.message || "Failed to send emails.");
+                    }
+                    button.text("Send Email");
+                },
+                error: function (xhr, status, error) {
+                    showNotificationModal("Error", "An error occurred: " + error);
+                    button.text("Send Email");
+                }
+            });
+        });
     </script>
 </body>
 </html>

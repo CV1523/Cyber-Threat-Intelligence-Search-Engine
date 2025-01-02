@@ -253,10 +253,10 @@
                             <td>${index + 1}</td>
                             <td>${queueButton}</td>
                             <td>${item.cve_number}</td>
-                            <td>${item.cve_name}</td>
+                            <td class="text-justify">${item.cve_name}</td>
                             <td>${item.cve_pubdate}</td>
                             <td>${item.cve_severity}</td>
-                            <td>${item.cve_description}</td>
+                            <td class="text-justify">${item.cve_description}</td>
                             <td><a href="${item.cve_link}">${item.cve_link}</a></td>
                         </tr>
                     `;
@@ -285,9 +285,9 @@
                         <tr>
                             <td>${index + 1}</td>
                             <td>${queueButton}</td>
-                            <td>${item.news_title}</td>
+                            <td class="text-justify">${item.news_title}</td>
                             <td>${item.news_pubdate}</td>
-                            <td>${item.news_description}</td>
+                            <td class="text-justify">${item.news_description}</td>
                             <td><a href="${item.news_link}">${item.news_link}</a></td>
                         </tr>
                     `;
