@@ -366,6 +366,9 @@ def saveTemplate():
         if not template_content:
             flash('Template content cannot be empty.', 'danger')
             return redirect(url_for('template'))
+        if "(_start)" not in template_content or "(_end)" not in template_content:
+            flash('Template content must contain "(_start)" and "(_end)"', 'danger')
+            return redirect(url_for('template'))
         cursor.execute('SELECT template_name FROM templates WHERE template_name = %s', (template_name,))
         result = cursor.fetchone()
         if result:
@@ -445,6 +448,9 @@ def saveEditTemplate():
         if not template_content:
             flash("Template content cannot be empty!", "danger")
             return redirect(url_for("editTemplate"))
+        if "(_start)" not in template_content or "(_end)" not in template_content:
+            flash('Template content must contain "(_start)" and "(_end)"', 'danger')
+            return redirect(url_for('editTemplate'))
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM templates WHERE id = %s", (template_id, ))
